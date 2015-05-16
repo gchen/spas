@@ -87,6 +87,7 @@ def stopC():
 def syCaConf():
     put('/home/spark/cassandra/conf_template_2.1/*','/etc/cassandra/conf/',use_sudo=True)
     updateIpInCassConf()
+    run("sudo chown -R cassandra:cassandra /etc/cassandra/conf/")
 
 @roles('master','slaves')
 def updateIpInCassConf():
