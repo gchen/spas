@@ -1,0 +1,125 @@
+# 
+# This is an YAML profile to simulate write workload for growing.io
+#
+# Insert data
+# cassandra-stress user profile=/home/spark/cqlgrowingio.yaml ops\(insert=1\) -node openstack-03,openstack-04,openstack-05
+#
+# Queries will be doen via Spark SQL
+#
+
+#
+# Keyspace info
+#
+keyspace: growingio
+
+#
+# The CQL for creating a keysapce (optional if already exists)
+#
+keyspace_definition: |
+  CREATE KEYSPACE growingio WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3};
+
+#
+# Table info
+#
+table: stresswrite
+
+#
+# The CQL for creating a table you wish to stress (optional if it already exists)
+#
+#{
+#    "ai": "b39691a04ffddef6c4b620155gii8d78",
+#    "av": "0.1",
+#    "b": "Web",
+#    "u": "99ed0578-fe25-40db-b3b0-1e0469909a43",
+#    "s": "47dba49f-4508-4a2a-b22f-6abfb380d6bf",
+#    "t": "vst",
+#    "tm": 1430072534925,
+#    "sh": 568,
+#    "sw": 320,
+#    "d": "m.nflshop.com",
+#    "bw": "Mobile Safari",
+#    "bwv": "8.0",
+#    "os": "iOS",
+#    "rf": "https://www.google.com",
+#    "rd": "www.google.com",
+#    "stm": 1430072535023,
+#    "grwng_uid": "",
+#    "@timestamp": 1430072536302
+#}
+#
+table_definition: |
+  CREATE TABLE stresswrite (
+       ai       uuid,           
+       av       float,          
+       b        text,           
+       u        uuid,           
+       s        uuid,           
+       t        text,           
+       tm       timestamp,      
+       sh       int,            
+       sw       int,            
+       d        inet,           
+       bw       text,           
+       bwv      text,           
+       os       text,           
+       rf       text,           
+       rd       text,           
+       stm      timestamp,      
+       guid     uuid,           
+       ts       timestamp,      
+       PRIMARY KEY((d, os), ts)
+  ) WITH CLUSTERING ORDER BY (ts DESC)
+    AND compaction = { 'class':'LeveledCompactionStrategy' }
+    AND comment='A table of many types to simulate real growingio workload';
+
+#
+# Optional meta inforamation on the generated columns in the above table
+# The min and max only apply to text and blob types
+# The distribution field represents the total unique population
+# distribution of that column across rows. Supported types are
+#
+#       EXP(min..max)                    An exponential distribution over the range [min..max]
+#       EXTREME(min..max,shape)          An extreme value (Weibull) distribution over the range [min..max]
+#       GAUSSIAN(min..max,stdvrng)       A gaussian/normal distribution, where mean=(min+max)/2, and stdev is (mean-min)/stdvrng
+#       GAUSSIAN(min..max,mean,stdev)    A gaussian/normal distribution, with explicitly defined mean and stdev
+#       UNIFORM(min..max)                A uniform distribution over the range [min..max]
+#       FIXED(val)                       A fixed distribution, always returning the same value
+#       Aliases: extr, gauss, normal, norm, weibull
+#
+#       If preceded by ~, the distribution is inverted
+#
+# Defaults for all columns are size: uniform(4..8), polulation: uniform(1..100B), cluster: fixed(1)
+#
+columnspec:
+  - name: av
+    size: uniform(0..1)
+  - name: b
+    size: fixed(3)
+  - name: t
+    size: fixed(3)
+  - name: sh
+    size: fixed(3)
+  - name: sw
+    size: fixed(3)
+  - name: bw
+    size: uniform(4..10) 
+  - name: bwv
+    size: fixed(3)
+  - name: os
+    size: fixed(3)
+  - name: rf
+    size: fixed(15)
+  - name: rd
+    size: fixed(10)
+  - name: tm
+    cluster: gaussian(1..20)
+
+insert:
+  partitions: fixed(1) #TODO what does this mean?
+  batchtype: LOGGED
+  select: fixed(1)/1
+
+queries:
+  simple1:
+    cql: select * from stresswrite where ai = ?
+    fields: multirow   # TODO what does this mean?
