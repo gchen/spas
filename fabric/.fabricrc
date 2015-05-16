@@ -1,0 +1,2 @@
+colorize_errors=True
+fabfile=/home/gchen/Worksapce/spas/fabric/fabfile.py
