@@ -6,7 +6,6 @@ from fabric.api import settings
 from datetime import *
 import os
 
-#env.hosts=['openstack-03','openstack-04','openstack-05'] 
 env.hosts=['openstack-04','openstack-05'] 
 env.roledefs={'master':['openstack-03'],'slaves':['openstack-04','openstack-05']}
 env.user = 'spark'
@@ -32,15 +31,18 @@ def acmd(cmd):
 def cmd(cmd):
     res = run('%s' %(cmd))
 
+@roles('master','slaves')
 def ssh_key():
-    res = run ('cat ~/.ssh/id_rsa.pub')
-    os.system('echo ' + res + '>> ~/.ssh/authorized_keys')     
+    pub_key = run ('cat ~/.ssh/id_rsa.pub')
+    os.system('echo ' + pub_key + '>> ~/.ssh/authorized_keys')     
     #run('echo ' + res + ' >> ~/.ssh/authorized_keys')
     #run('chmod 600 ~/.ssh/authorized_keys')
 
+@roles('slaves')
 def deploy_cass():
     put('/home/spark/cassandra/apache-cassandra-2.0.14/', '/home/spark/cassandra/',mirror_local_mode=True)
 
+@roles('slaves')
 def suscp(local,remote):
     put(local,remote,use_sudo=True,mirror_local_mode=True)
 
@@ -98,7 +100,7 @@ def startOpsAgent():
     run("sudo service datastax-agent start")
 
 @roles('master')
-def WtCass():
+def WtCass(): # for C* 2.0
     # write test three nodes
     run('/usr/bin/cassandra-stress \
          -d openstack-03,openstack-04,openstack-05 \
@@ -107,27 +109,32 @@ def WtCass():
          -o INSERT \
          -R SimpleStrategy \
          -l 3 \
-         -f ' + 'CassWRITE-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
+         -f ' + 'log/' + 'CassWRITE-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
 
 @roles('master')
-def RdCass():
+def RdCass(): # for C* 2.0
     # read test three nodes
     run('/usr/bin/cassandra-stress \
          -d openstack-03,openstack-04,openstack-05 \
          --columns=10 \
          -n 10000000 \
          -o READ \
-         -f ' + 'CassREAD-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
+         -f ' + 'log/' + 'CassREAD-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
 
 @roles('master','slaves')
-def Stress():
+def Stress(): # for C* 2.1
     #run('cassandra-stress user profile=/home/spark/cqlstress-counter-example.yaml ops\(insert=2,simple1=1\) -node openstack-04,openstack-05')
 
     # Running below test in three nodes in parallel, hence we will end up with 20M * 3 = 60M messages.
-    run('cassandra-stress user profile=/home/spark/cqlgrowingio.yaml ops\(insert=1\) n=20000000 -node openstack-03,openstack-04,openstack-05 -rate threads\>=16 threads\<=32 auto -log file=' + 'CassStress-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
+    run('cassandra-stress user profile=/home/spark/cqlgrowingio.yaml \
+         ops\(insert=1\) \
+         n=20000000 \
+         -node openstack-03,openstack-04,openstack-05 \
+         -rate threads\>=16 threads\<=32 auto \
+         -log file=' + 'log/' + 'CassStress-'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.out')
 
 @roles('master')
-def WtCass_old():
+def WtCass_old(): # for C* 2.0
     # Use stress deamon has bug: https://issues.apache.org/jira/browse/CASSANDRA-5978
     #run('/home/spark/cassandra/apache-cassandra-2.0.14/tools/bin/cassandra-stressd start')   
     #run('/home/spark/cassandra/apache-cassandra-2.0.14/tools/bin/cassandra-stress -d 9.186.100.95,9.186.95.94 -n 10000000 --send-to localhost')
@@ -181,8 +188,6 @@ def install_dsc21():
 
 @roles('master','slaves')
 def mkdir_dsc21():
-    run("    sudo mkdir -p /local_tmp_disk/cassandra/commit2/; sudo chown -R cassandra:cassandra /local_tmp_disk/cassandra/commit2/")
-    run(" sudo mkdir -p /hdfs_disk0/cassandra/data2;sudo chown -R cassandra:cassandra /hdfs_disk0/cassandra/data2")
-
-
+    run("sudo mkdir -p /local_tmp_disk/cassandra/commit2/; sudo chown -R cassandra:cassandra /local_tmp_disk/cassandra/commit2/")
+    run("sudo mkdir -p /hdfs_disk0/cassandra/data2;sudo chown -R cassandra:cassandra /hdfs_disk0/cassandra/data2")
 
