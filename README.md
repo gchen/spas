@@ -1,2 +1,2 @@
 # Spas
-Lamba Architecture based on Spark and Cassandra.
+Lamda Architecture based on Spark and Cassandra.
